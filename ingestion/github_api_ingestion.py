@@ -41,6 +41,7 @@ def upload_to_s3(data):
         "partition_path": key,
         "records_ingested": len(data),
         "status": "SUCCESS",
+        "error_message": None,
     }
 
     s3.put_object(
@@ -53,8 +54,30 @@ def upload_to_s3(data):
 
 
 def main():
-    events = fetch_github_events()
-    upload_to_s3(events)
+    now = datetime.now(UTC)
+    timestamp = now.strftime("%Y%m%d_%H%M%S")
+    s3 = boto3.client("s3")
+
+    try:
+        events = fetch_github_events()
+        upload_to_s3(events)
+    except Exception as exc:
+        failed_log = {
+            "run_id": timestamp,
+            "run_ts": now.isoformat(),
+            "partition_path": None,
+            "records_ingested": 0,
+            "status": "FAILED",
+            "error_message": str(exc),
+        }
+
+        s3.put_object(
+            Bucket=S3_BUCKET,
+            Key=f"metadata/run_logs/run_{timestamp}.json",
+            Body=json.dumps(failed_log),
+        )
+
+        raise
 
 
 if __name__ == "__main__":
