@@ -1,15 +1,19 @@
 # GitHub Events Data Pipeline
 
-Cloud-based data engineering project built with **AWS S3**, **Athena**, **SQL**, and a layered lakehouse-style architecture.
+Cloud-based data engineering project built with **Python**, **AWS S3**, **Athena-oriented storage patterns**, **Airflow**, **Pytest**, and **GitHub Actions**.
 
 ## Overview
 
-This project demonstrates how to ingest semi-structured event data into an AWS data lake and transform it into analytics-ready datasets using a layered approach:
+This project demonstrates a production-style ingestion and orchestration pattern for semi-structured event data:
 
-- **Raw** → original JSON event data stored in S3
-- **Staging** → flattened fields from nested JSON
-- **Core** → normalized types and business-friendly naming
-- **Mart** → analytical aggregations ready for reporting
+- ingest GitHub public events through a hardened Python client
+- store newline-delimited JSON in an S3 raw layer
+- partition raw data by `year/month/day`
+- write run metadata to S3 for operational visibility
+- validate and monitor the latest pipeline run through Airflow tasks
+- prepare SQL layers for staging, core, and mart-style analytics modeling
+
+This repository is positioned as the **ingestion + reliability + orchestration** pillar of a wider data engineering portfolio.
 
 ## Architecture
 
@@ -19,89 +23,123 @@ See the pipeline diagram in:
 
 ## Current Stack
 
-- **Amazon S3** for raw data lake storage
-- **Amazon Athena** for SQL querying and transformations
-- **AWS Glue Data Catalog / Athena metadata**
-- **SQL views** for staging, core and mart layers
+- **Python** for ingestion, validation, and monitoring scripts
+- **Amazon S3** for raw data lake storage and run metadata
+- **Amazon Athena / AWS Glue-oriented patterns** for downstream SQL querying
+- **Airflow DAG** for orchestration
+- **Pytest** for Python tests
+- **GitHub Actions** for CI
 
 ## Data Flow
 
 ```text
-GitHub event JSON
+GitHub public events API
     ↓
-S3 raw layer
+Python ingestion
     ↓
-Athena external table
+S3 raw layer (newline-delimited JSON)
     ↓
-staging view
+S3 run log metadata
     ↓
-core view
-    ↓
-analytics mart
+Airflow DAG
+    ├─ ingest
+    ├─ validate latest S3 run log
+    └─ monitor latest S3 run status
 ```
 
-## Implemented Layers
+## Implemented Components
 
-### 1. Raw layer
+### 1. Source layer
 
-Source data stored as JSON in S3.
+GitHub public events API accessed through a Python source module with:
 
-Example location:
+- request timeout
+- retry for transient `5xx` errors
+- explicit request exception handling
 
-`s3://joaofonseca-data-platform/raw/github_events/`
+### 2. Ingestion layer
 
-### 2. Staging layer
+The ingestion pipeline:
 
-Flattened nested JSON fields such as:
+- fetches GitHub public events
+- uploads newline-delimited JSON to S3
+- writes partitioned raw files using:
+  - `year=YYYY`
+  - `month=MM`
+  - `day=DD`
+- writes run metadata to `metadata/run_logs/`
 
-- `actor.login` → `actor_login`
-- `repo.name` → `repo_name`
+### 3. Validation and monitoring layer
 
-### 3. Core layer
+The project includes Python scripts that:
 
-Normalized and typed fields:
+- validate the latest run log stored in S3
+- check latest pipeline run status and ingested record count
 
-- `event_id`
-- `event_type`
-- `actor_login`
-- `repo_name`
-- `event_ts`
+### 4. Orchestration layer
 
-### 4. Mart layer
+The Airflow DAG orchestrates three tasks:
 
-Analytical aggregation example:
+- `ingest_github_events`
+- `validate_run_log_contract`
+- `run_monitoring_check`
 
-- `mart_events_by_type`
+### 5. SQL layer
 
-## Example SQL Pattern
+The repository includes SQL directories for:
 
-```sql
-SELECT
-    event_type,
-    COUNT(*) AS total_events
-FROM github_events_core
-GROUP BY event_type;
-```
+- `staging`
+- `core`
+- `marts`
+- `tests`
+
+These provide the foundation for the Athena-side transformation story.
 
 ## Skills Demonstrated
 
-- Data lake architecture
-- Schema-on-read querying
-- JSON flattening in SQL
-- Type normalization
-- Layered analytical modeling
-- AWS-based cloud data workflows
+- Python-based API ingestion
+- S3 raw zone design
+- Hive-style partitioning
+- Run metadata logging
+- Retry / timeout / request error handling
+- Basic Airflow orchestration
+- Python unit testing with mocks
+- GitHub Actions CI
+- Layered SQL project structure
+
+## Current Status
+
+Implemented today:
+
+- real ingestion from GitHub public events API
+- partitioned S3 raw storage
+- run metadata logging to S3
+- externalized ingestion configuration
+- hardened HTTP ingestion behavior
+- Python tests for config and API behavior
+- GitHub Actions workflow for pytest
+- Airflow DAG with ingest, validate, and monitor tasks
+- validation and monitoring scripts backed by real S3 run logs
+
+## Known Limitations
+
+- Airflow still uses `BashOperator`
+- Athena external table DDL is not yet implemented
+- SQL layers are present but not yet wired into an executable Athena workflow
+- Python test coverage is still partial
+- No Terraform / IaC yet
+- No deduplication or idempotency strategy yet
 
 ## Roadmap
 
-Planned next steps:
+Next high-value improvements:
 
-- Python ingestion pipeline from GitHub API
-- Partitioned S3 layout
-- Data quality checks
-- Automated ingestion workflow
-- Portfolio-ready documentation and screenshots
+- improve Python test coverage for ingestion and validation layers
+- add Athena external table DDL and partition management story
+- strengthen CI with linting and DAG validation
+- improve Airflow implementation beyond the current BashOperator pattern
+- add minimal infrastructure-as-code for AWS resources
 
 ## Purpose
 
-This project is designed to strengthen a portfolio for **Data Engineer** and **Analytics Engineer** roles by demonstrating practical cloud data engineering patterns used in modern data platforms.
+This project is designed to strengthen a portfolio for **Data Engineer**, **Analytics Engineer**, and **AWS-oriented pipeline / platform** roles by demonstrating ingestion, operational reliability, and orchestration patterns used in real data platforms.
