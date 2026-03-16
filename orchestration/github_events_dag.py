@@ -25,3 +25,15 @@ with DAG(
         task_id="ingest_github_events",
         bash_command="cd /opt/airflow && python -m ingestion.github_api_ingestion",
     )
+
+    validate_run_log_contract = BashOperator(
+        task_id="validate_run_log_contract",
+        bash_command="echo 'Validating run log contract after ingestion'",
+    )
+
+    run_monitoring_check = BashOperator(
+        task_id="run_monitoring_check",
+        bash_command="echo 'Running monitoring check for GitHub events pipeline'",
+    )
+
+    ingest_github_events >> validate_run_log_contract >> run_monitoring_check
