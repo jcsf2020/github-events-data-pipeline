@@ -1,8 +1,12 @@
 import json
-import sys
 from pathlib import Path
 
+import boto3
 
+from ingestion.config import S3_BUCKET
+
+
+RUN_LOG_PREFIX = "metadata/run_logs/"
 REQUIRED_FIELDS = {
     "run_id",
     "run_ts",
@@ -26,17 +30,27 @@ def validate_run_log(run_log):
         raise ValueError("Run log records_ingested must be greater than 0")
 
 
+def load_latest_run_log():
+    s3 = boto3.client("s3")
+    response = s3.list_objects_v2(Bucket=S3_BUCKET, Prefix=RUN_LOG_PREFIX)
+    contents = response.get("Contents", [])
+
+    if not contents:
+        raise ValueError("No run log files found in S3")
+
+    latest_run_log = max(contents, key=lambda item: item["LastModified"])
+    run_log_key = latest_run_log["Key"]
+
+    response = s3.get_object(Bucket=S3_BUCKET, Key=run_log_key)
+    run_log = json.loads(response["Body"].read().decode("utf-8"))
+
+    return run_log_key, run_log
+
+
 def main():
-    if len(sys.argv) != 2:
-        raise ValueError("Usage: python -m validation.validate_run_log <run_log_path>")
-
-    run_log_path = Path(sys.argv[1])
-
-    with run_log_path.open() as file:
-        run_log = json.load(file)
-
+    run_log_key, run_log = load_latest_run_log()
     validate_run_log(run_log)
-    print("Run log validation passed")
+    print(f"Run log validation passed for s3://{S3_BUCKET}/{run_log_key}")
 
 
 if __name__ == "__main__":
