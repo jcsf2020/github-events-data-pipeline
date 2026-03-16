@@ -1,4 +1,5 @@
 import json
+import sys
 from pathlib import Path
 
 
@@ -26,7 +27,10 @@ def validate_run_log(run_log):
 
 
 def main():
-    run_log_path = Path("sample_run_log.json")
+    if len(sys.argv) != 2:
+        raise ValueError("Usage: python -m validation.validate_run_log <run_log_path>")
+
+    run_log_path = Path(sys.argv[1])
 
     with run_log_path.open() as file:
         run_log = json.load(file)
