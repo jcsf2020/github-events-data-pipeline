@@ -1,26 +1,16 @@
-import requests
 import json
-from datetime import datetime, UTC
+from datetime import UTC, datetime
+
 import boto3
 
-# GitHub public events endpoint
-GITHUB_EVENTS_URL = "https://api.github.com/events"
+from ingestion.github_api import fetch_github_events
+from ingestion.run_logger import log_failure, log_success
 
-# S3 configuration
 S3_BUCKET = "joaofonseca-data-platform"
 S3_PREFIX = "raw/github_events"
 
 
-def fetch_github_events():
-    response = requests.get(GITHUB_EVENTS_URL)
-
-    if response.status_code != 200:
-        raise Exception(f"GitHub API error: {response.status_code}")
-
-    return response.json()
-
-
-def upload_to_s3(data):
+def upload_raw_events(bucket, prefix, data):
     s3 = boto3.client("s3")
 
     now = datetime.now(UTC)
@@ -29,54 +19,44 @@ def upload_to_s3(data):
     month = now.strftime("%m")
     day = now.strftime("%d")
 
-    key = f"{S3_PREFIX}/year={year}/month={month}/day={day}/events_{timestamp}.json"
+    key = f"{prefix}/year={year}/month={month}/day={day}/events_{timestamp}.json"
 
     s3.put_object(
-        Bucket=S3_BUCKET, Key=key, Body="\n".join(json.dumps(event) for event in data)
+        Bucket=bucket,
+        Key=key,
+        Body="\n".join(json.dumps(event) for event in data),
     )
 
-    run_log = {
+    return {
         "run_id": timestamp,
         "run_ts": now.isoformat(),
         "partition_path": key,
         "records_ingested": len(data),
-        "status": "SUCCESS",
-        "error_message": None,
     }
-
-    s3.put_object(
-        Bucket=S3_BUCKET,
-        Key=f"metadata/run_logs/run_{timestamp}.json",
-        Body=json.dumps(run_log),
-    )
-
-    print(f"Uploaded file to s3://{S3_BUCKET}/{key}")
 
 
 def main():
     now = datetime.now(UTC)
     timestamp = now.strftime("%Y%m%d_%H%M%S")
-    s3 = boto3.client("s3")
 
     try:
         events = fetch_github_events()
-        upload_to_s3(events)
-    except Exception as exc:
-        failed_log = {
-            "run_id": timestamp,
-            "run_ts": now.isoformat(),
-            "partition_path": None,
-            "records_ingested": 0,
-            "status": "FAILED",
-            "error_message": str(exc),
-        }
-
-        s3.put_object(
-            Bucket=S3_BUCKET,
-            Key=f"metadata/run_logs/run_{timestamp}.json",
-            Body=json.dumps(failed_log),
+        run_metadata = upload_raw_events(S3_BUCKET, S3_PREFIX, events)
+        log_success(
+            bucket=S3_BUCKET,
+            run_id=run_metadata["run_id"],
+            run_ts=run_metadata["run_ts"],
+            partition_path=run_metadata["partition_path"],
+            records_ingested=run_metadata["records_ingested"],
         )
-
+        print(f"Uploaded file to s3://{S3_BUCKET}/{run_metadata['partition_path']}")
+    except Exception as exc:
+        log_failure(
+            bucket=S3_BUCKET,
+            run_id=timestamp,
+            run_ts=now.isoformat(),
+            error_message=exc,
+        )
         raise
 
 
