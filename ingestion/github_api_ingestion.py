@@ -3,11 +3,9 @@ from datetime import UTC, datetime
 
 import boto3
 
+from ingestion.config import S3_BUCKET, S3_PREFIX
 from ingestion.github_api import fetch_github_events
 from ingestion.run_logger import log_failure, log_success
-
-S3_BUCKET = "joaofonseca-data-platform"
-S3_PREFIX = "raw/github_events"
 
 
 def upload_raw_events(bucket, prefix, data):

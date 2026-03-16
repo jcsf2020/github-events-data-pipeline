@@ -1,6 +1,5 @@
 import requests
-
-GITHUB_EVENTS_URL = "https://api.github.com/events"
+from ingestion.config import GITHUB_EVENTS_URL
 
 
 def fetch_github_events():
