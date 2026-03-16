@@ -33,7 +33,7 @@ with DAG(
 
     run_monitoring_check = BashOperator(
         task_id="run_monitoring_check",
-        bash_command="echo 'Running monitoring check for GitHub events pipeline'",
+        bash_command="cd /opt/airflow && python -m monitoring.check_latest_run",
     )
 
     ingest_github_events >> validate_run_log_contract >> run_monitoring_check
