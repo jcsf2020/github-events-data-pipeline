@@ -30,10 +30,14 @@ jobs:
         run: |
           uv pip install --system -r requirements.txt
           uv pip install --system pytest
+          uv pip install --system ruff
           uv pip install --system apache-airflow
 
       - name: Run tests
         run: python -m pytest tests
+
+      - name: Run ruff
+        run: ruff check .
 
       - name: Validate Airflow DAG import
         run: python -c "from orchestration.github_events_dag import dag"
