@@ -28,7 +28,7 @@ with DAG(
 
     validate_run_log_contract = BashOperator(
         task_id="validate_run_log_contract",
-        bash_command="cd /opt/airflow && python -m validation.validate_run_log sample_run_log.json",
+        bash_command="cd /opt/airflow && python -m validation.validate_run_log",
     )
 
     run_monitoring_check = BashOperator(
