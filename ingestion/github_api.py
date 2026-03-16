@@ -11,7 +11,13 @@ def fetch_github_events():
     last_status_code = None
 
     for attempt in range(MAX_RETRIES):
-        response = requests.get(GITHUB_EVENTS_URL, timeout=REQUEST_TIMEOUT_SECONDS)
+        try:
+            response = requests.get(
+                GITHUB_EVENTS_URL,
+                timeout=REQUEST_TIMEOUT_SECONDS,
+            )
+        except requests.RequestException as exc:
+            raise Exception(f"GitHub API request failed: {exc}") from exc
         last_status_code = response.status_code
 
         if response.status_code == 200:
