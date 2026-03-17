@@ -1,17 +1,18 @@
 # GitHub Events Data Pipeline
 
-Cloud-based data engineering project built with **Python**, **AWS S3**, **Athena-oriented storage patterns**, **Airflow**, **Pytest**, and **GitHub Actions**.
+Cloud-based data engineering project built with **Python**, **AWS S3**, **Amazon Athena**, **AWS Glue Catalog**, **Apache Airflow**, **Pytest**, and **GitHub Actions**.
 
 ## Overview
 
-This project demonstrates a production-style ingestion and orchestration pattern for semi-structured event data:
+This project implements a production-oriented ingestion and analytics pattern for semi-structured GitHub public events data:
 
 - ingest GitHub public events through a hardened Python client
-- store newline-delimited JSON in an S3 raw layer
+- store raw event data in Amazon S3
 - partition raw data by `year/month/day`
 - write run metadata to S3 for operational visibility
 - validate and monitor the latest pipeline run through Airflow tasks
-- prepare SQL layers for staging, core, and mart-style analytics modeling
+- expose partitioned raw data in Athena through external tables
+- model staging, core, and mart-style analytical views in Athena
 
 This repository is positioned as the **ingestion + reliability + orchestration** pillar of a wider data engineering portfolio.
 
@@ -25,7 +26,8 @@ See the pipeline diagram in:
 
 - **Python** for ingestion, validation, and monitoring scripts
 - **Amazon S3** for raw data lake storage and run metadata
-- **Amazon Athena / AWS Glue-oriented patterns** for downstream SQL querying
+- **Amazon Athena** for queryable external tables and analytical views
+- **AWS Glue Catalog** for table and view metadata
 - **Airflow DAG** for orchestration
 - **Pytest** for Python tests
 - **GitHub Actions** for CI
@@ -37,14 +39,23 @@ GitHub public events API
     ↓
 Python ingestion
     ↓
-S3 raw layer (newline-delimited JSON)
+S3 raw layer
+    ├─ raw/github_events/year=YYYY/month=MM/day=DD/
+    └─ metadata/run_logs/
     ↓
-S3 run log metadata
+Athena external tables
+    ├─ github_events_partitioned
+    └─ pipeline_run_log
+    ↓
+Athena views
+    ├─ github_events_partitioned_staging
+    ├─ github_events_partitioned_core
+    └─ mart_events_by_type / partitioned marts
     ↓
 Airflow DAG
-    ├─ ingest
-    ├─ validate latest S3 run log
-    └─ monitor latest S3 run status
+    ├─ ingest_github_events
+    ├─ validate_run_log_contract
+    └─ run_monitoring_check
 ```
 
 ## Implemented Components
@@ -62,7 +73,7 @@ GitHub public events API accessed through a Python source module with:
 The ingestion pipeline:
 
 - fetches GitHub public events
-- uploads newline-delimited JSON to S3
+- uploads raw event data to S3
 - writes partitioned raw files using:
   - `year=YYYY`
   - `month=MM`
@@ -84,16 +95,25 @@ The Airflow DAG orchestrates three tasks:
 - `validate_run_log_contract`
 - `run_monitoring_check`
 
-### 5. SQL layer
+The DAG now uses Airflow TaskFlow-style tasks rather than shelling out through `BashOperator`.
 
-The repository includes SQL directories for:
+### 5. Athena / SQL layer
 
-- `staging`
-- `core`
-- `marts`
-- `tests`
+The project includes deployed Athena objects for:
 
-These provide the foundation for the Athena-side transformation story.
+- `github_events_partitioned` external table over partitioned raw S3 data
+- `pipeline_run_log` external table over S3 run metadata
+- `github_events_partitioned_staging` view for structural flattening
+- `github_events_partitioned_core` view for typed analytical fields
+- `mart_events_by_type` and partitioned mart variants for aggregation
+
+The repository also contains SQL files under:
+
+- `sql/infrastructure`
+- `sql/staging`
+- `sql/core`
+- `sql/marts`
+- `sql/tests`
 
 ## Skills Demonstrated
 
@@ -102,44 +122,46 @@ These provide the foundation for the Athena-side transformation story.
 - Hive-style partitioning
 - Run metadata logging
 - Retry / timeout / request error handling
-- Basic Airflow orchestration
+- Airflow orchestration with TaskFlow API
+- Athena external tables and views
+- AWS Glue Catalog integration
 - Python unit testing with mocks
 - GitHub Actions CI
 - Layered SQL project structure
 
 ## Current Status
 
-Implemented today:
+Implemented and working:
 
 - real ingestion from GitHub public events API
 - partitioned S3 raw storage
 - run metadata logging to S3
 - externalized ingestion configuration
 - hardened HTTP ingestion behavior
-- Python tests for config and API behavior
-- GitHub Actions workflow for pytest
+- Python tests for config, API behavior, validation, and monitoring
+- GitHub Actions workflow for pytest, ruff, and DAG import validation
 - Airflow DAG with ingest, validate, and monitor tasks
-- validation and monitoring scripts backed by real S3 run logs
+- Athena external tables for raw events and pipeline run logs
+- Athena staging, core, and mart views over the ingested data
 
 ## Known Limitations
 
-- Airflow still uses `BashOperator`
-- Athena external table DDL is not yet implemented
-- SQL layers are present but not yet wired into an executable Athena workflow
 - Python test coverage is still partial
 - No Terraform / IaC yet
 - No deduplication or idempotency strategy yet
+- Monitoring checks latest status and row count, but does not yet enforce a freshness SLA window
+- Repository SQL coverage is still being aligned with every live Athena mart object
 
 ## Roadmap
 
 Next high-value improvements:
 
 - improve Python test coverage for ingestion and validation layers
-- add Athena external table DDL and partition management story
-- strengthen CI with linting and DAG validation
-- improve Airflow implementation beyond the current BashOperator pattern
+- add repository SQL files for all live partitioned mart variants
 - add minimal infrastructure-as-code for AWS resources
+- implement a clear deduplication strategy in the analytical layer
+- add freshness/SLA validation to monitoring
 
 ## Purpose
 
-This project is designed to strengthen a portfolio for **Data Engineer**, **Analytics Engineer**, and **AWS-oriented pipeline / platform** roles by demonstrating ingestion, operational reliability, and orchestration patterns used in real data platforms.
+This project is designed to strengthen a portfolio for **Data Engineer**, **Analytics Engineer**, and **AWS-oriented pipeline / platform** roles by demonstrating ingestion, operational reliability, orchestration, and queryable Athena-based analytical modeling over live cloud data.

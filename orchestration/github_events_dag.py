@@ -1,10 +1,9 @@
 from datetime import datetime, timedelta
 
-from airflow import DAG
-from airflow.operators.bash import BashOperator
+from airflow.sdk import dag, task
 
 
-default_args = {
+DEFAULT_ARGS = {
     "owner": "joaofonseca",
     "depends_on_past": False,
     "retries": 2,
@@ -12,28 +11,39 @@ default_args = {
 }
 
 
-with DAG(
+@dag(
     dag_id="github_events_ingestion",
     description="Ingest GitHub public events into S3 raw layer",
-    default_args=default_args,
+    default_args=DEFAULT_ARGS,
     start_date=datetime(2026, 3, 16),
     schedule="@daily",
     catchup=False,
     tags=["github", "ingestion", "s3"],
-) as dag:
-    ingest_github_events = BashOperator(
-        task_id="ingest_github_events",
-        bash_command="cd /opt/airflow && python -m ingestion.github_api_ingestion",
-    )
+)
+def github_events_pipeline():
+    @task(execution_timeout=timedelta(minutes=10))
+    def ingest_github_events():
+        from ingestion.github_api_ingestion import main
 
-    validate_run_log_contract = BashOperator(
-        task_id="validate_run_log_contract",
-        bash_command="cd /opt/airflow && python -m validation.validate_run_log",
-    )
+        main()
 
-    run_monitoring_check = BashOperator(
-        task_id="run_monitoring_check",
-        bash_command="cd /opt/airflow && python -m monitoring.check_latest_run",
-    )
+    @task(execution_timeout=timedelta(minutes=5))
+    def validate_run_log_contract():
+        from validation.validate_run_log import main
 
-    ingest_github_events >> validate_run_log_contract >> run_monitoring_check
+        main()
+
+    @task(execution_timeout=timedelta(minutes=5))
+    def run_monitoring_check():
+        from monitoring.check_latest_run import main
+
+        main()
+
+    ingest = ingest_github_events()
+    validate = validate_run_log_contract()
+    monitor = run_monitoring_check()
+
+    ingest >> validate >> monitor
+
+
+dag = github_events_pipeline()
