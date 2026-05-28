@@ -85,13 +85,21 @@ The source access layer includes:
 - Configuration is externalized through `config.py`
 - Validation and monitoring scripts read the latest run log from S3
 
+## Orchestration
+
+The ingestion task is executed by an Airflow DAG (`orchestration/github_events_dag.py`) using the
+TaskFlow API (`@dag` / `@task` decorators from `airflow.sdk`). Tasks are chained as:
+
+```
+ingest_github_events >> validate_run_log_contract >> run_monitoring_check
+```
+
 ## Current Limitations
 
 - No deduplication strategy
 - No idempotency strategy
-- No Athena external table DDL yet
 - No partition sync / projection layer yet
-- Airflow orchestration still uses `BashOperator`
+- No freshness SLA enforcement in the monitoring check
 
 ## Notes
 
