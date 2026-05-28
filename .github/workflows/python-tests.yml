@@ -28,16 +28,17 @@ jobs:
 
       - name: Install dependencies
         run: |
-          uv pip install --system -r requirements.txt
-          uv pip install --system pytest
-          uv pip install --system ruff
+          uv pip install --system -r requirements.txt -r requirements-dev.txt
           uv pip install --system apache-airflow
 
       - name: Run tests
-        run: python -m pytest tests
+        run: python -m pytest -q tests
 
       - name: Run ruff
-        run: ruff check .
+        run: python -m ruff check .
+
+      - name: Compile Python modules
+        run: python -m compileall ingestion monitoring validation orchestration
 
       - name: Validate Airflow DAG import
         run: python -c "from orchestration.github_events_dag import dag"
