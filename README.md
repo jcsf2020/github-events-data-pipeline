@@ -12,6 +12,25 @@ designed to reflect real pipeline engineering practices.
 
 ---
 
+## Career Evidence Snapshot
+
+This repository is an AWS-oriented data pipeline reference project for Data Engineering and Analytics Engineering roles. It demonstrates ingestion from the GitHub Public Events API, S3-style raw storage contracts, Athena/SQL analytical modeling, Airflow orchestration structure, monitoring checks, and CI validation.
+
+**Current evidence level:** supporting proof asset only. Use after RTDP and Azure Lakehouse in recruitment/commercial positioning.
+
+| Area | Evidence |
+|---|---|
+| Source ingestion | GitHub Public Events API ingestion modules under `ingestion/` |
+| Storage contract | S3 raw path and run metadata contract documented in `docs/ingestion_contract.md` |
+| Orchestration | Airflow DAG structure in `orchestration/github_events_dag.py` |
+| Validation | Run log validation and monitoring checks under `validation/` and `monitoring/` |
+| Analytical layer | SQL structure for staging, core and mart layers |
+| CI / quality | GitHub Actions with pytest, ruff, compileall and DAG import validation |
+| Evidence status | `docs/execution-evidence.md` documents what is proven and what remains unevidenced |
+
+**Honest boundary:** this repository currently proves local/CI validation and implemented pipeline structure. It does not yet document live AWS execution evidence, S3 object proof, Athena output, Glue registration, or Airflow scheduled run proof.
+
+---
 ## Current Evidence Status
 
 | Area | Status |
